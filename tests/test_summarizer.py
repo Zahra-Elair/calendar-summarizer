@@ -57,3 +57,85 @@ def test_parse_response_tolerates_code_fenced_json():
     raw = "```json\n{\"overview\": \"x\", \"key_events\": [], \"time_breakdown\": \"\", \"highlights\": []}\n```"
     summary = parse_response(raw, "weekly", date(2026, 9, 21), date(2026, 9, 28))
     assert summary.overview == "x"
+
+
+import pytest
+from google.genai import errors
+from calsum.summarizer import (
+    summarize,
+    MissingAPIKeyError,
+    QuotaExceededError,
+    SummarizerError,
+)
+
+
+class _FakeResponse:
+    def __init__(self, text):
+        self.text = text
+
+
+class _FakeModels:
+    def __init__(self, text=None, exc=None):
+        self._text = text
+        self._exc = exc
+        self.calls = 0
+
+    def generate_content(self, **kwargs):
+        self.calls += 1
+        if self._exc is not None:
+            raise self._exc
+        return _FakeResponse(self._text)
+
+
+class _FakeClient:
+    def __init__(self, text=None, exc=None):
+        self.models = _FakeModels(text=text, exc=exc)
+
+
+class _FakeAPIError(errors.APIError):
+    def __init__(self, code):
+        self.code = code
+        Exception.__init__(self, f"api error {code}")
+
+
+def _one_event():
+    from datetime import datetime
+    from calsum.events import Event
+    return [Event(title="Standup", start=datetime(2026, 9, 22, 9, 0), end=datetime(2026, 9, 22, 9, 15))]
+
+
+def test_empty_events_returns_empty_summary_without_calling_api():
+    client = _FakeClient(text="SHOULD NOT BE USED")
+    summary = summarize([], "daily", date(2026, 9, 22), date(2026, 9, 23), client=client)
+    assert summary.empty is True
+    assert client.models.calls == 0
+    assert "nothing" in summary.overview.lower()
+
+
+def test_summarize_calls_client_and_parses_result():
+    raw = json.dumps(
+        {"overview": "Busy morning.", "key_events": ["09:00 Standup"], "time_breakdown": "0.2h", "highlights": []}
+    )
+    client = _FakeClient(text=raw)
+    summary = summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23), client=client)
+    assert client.models.calls == 1
+    assert summary.overview == "Busy morning."
+    assert summary.empty is False
+
+
+def test_quota_error_is_mapped():
+    client = _FakeClient(exc=_FakeAPIError(429))
+    with pytest.raises(QuotaExceededError):
+        summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23), client=client)
+
+
+def test_other_api_error_is_mapped_to_summarizer_error():
+    client = _FakeClient(exc=_FakeAPIError(500))
+    with pytest.raises(SummarizerError):
+        summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23), client=client)
+
+
+def test_missing_api_key_raises(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(MissingAPIKeyError):
+        summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23))

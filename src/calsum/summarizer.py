@@ -1,5 +1,9 @@
 import json
+import os
 from datetime import date
+
+from google import genai
+from google.genai import errors
 
 from calsum.events import Event
 from calsum.summary import Summary
@@ -63,3 +67,74 @@ def parse_response(raw: str, period: str, start: date, end: date) -> Summary:
         time_breakdown=data.get("time_breakdown", ""),
         highlights=list(data.get("highlights", [])),
     )
+
+
+class SummarizerError(Exception):
+    """Base error for the summarizer."""
+
+
+class MissingAPIKeyError(SummarizerError):
+    """GEMINI_API_KEY is not set."""
+
+
+class QuotaExceededError(SummarizerError):
+    """The free-tier quota/rate limit was hit."""
+
+
+DEFAULT_MODEL = "gemini-2.0-flash"
+
+
+def _empty_summary(period: str, start: date, end: date) -> Summary:
+    return Summary(
+        period=period,
+        start=start,
+        end=end,
+        overview="Nothing scheduled for this period.",
+        key_events=[],
+        time_breakdown="0h scheduled",
+        highlights=[],
+        empty=True,
+    )
+
+
+def _make_client() -> "genai.Client":
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise MissingAPIKeyError(
+            "GEMINI_API_KEY is not set. Get a free key at "
+            "https://aistudio.google.com/apikey and export GEMINI_API_KEY."
+        )
+    return genai.Client(api_key=api_key)
+
+
+def summarize(
+    events: list[Event],
+    period: str,
+    start: date,
+    end: date,
+    *,
+    client=None,
+    model: str | None = None,
+) -> Summary:
+    if not events:
+        return _empty_summary(period, start, end)
+
+    if client is None:
+        client = _make_client()
+    model = model or os.environ.get("CALSUM_MODEL", DEFAULT_MODEL)
+
+    prompt = build_prompt(events, period, start, end)
+    try:
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+    except errors.APIError as exc:
+        if getattr(exc, "code", None) == 429:
+            raise QuotaExceededError(
+                "Gemini free-tier quota/rate limit reached. Wait a bit and retry."
+            ) from exc
+        raise SummarizerError(f"Gemini API error: {exc}") from exc
+
+    return parse_response(response.text, period, start, end)
