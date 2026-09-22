@@ -28,7 +28,7 @@ calsum --period weekly --date 2026-09-22
 calsum --period monthly
 ```
 
-Optional: `export CALSUM_MODEL=gemini-2.0-flash` to change the model.
+Optional: `export CALSUM_MODEL=gemini-3.6-flash` to change the model (this is the default).
 
 ## Tests
 

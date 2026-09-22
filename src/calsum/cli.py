@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 from datetime import date, datetime
 
@@ -44,6 +45,10 @@ def main(argv: list[str] | None = None, summarize_fn=summarize) -> int:
     # Load GEMINI_API_KEY / CALSUM_MODEL from a local .env if present. Existing
     # environment variables always win, so `export` still overrides the file.
     load_dotenv(override=False)
+
+    # Silence the SDK's benign "automatic function calling" info notice so the
+    # printed summary isn't preceded by library noise. Real errors still show.
+    logging.getLogger("google_genai").setLevel(logging.ERROR)
 
     try:
         args = _parse_args(argv)

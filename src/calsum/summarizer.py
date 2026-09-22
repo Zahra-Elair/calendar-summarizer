@@ -85,7 +85,7 @@ class QuotaExceededError(SummarizerError):
     """The free-tier quota/rate limit was hit."""
 
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 
 def _empty_summary(period: str, start: date, end: date) -> Summary:
