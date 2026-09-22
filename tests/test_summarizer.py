@@ -139,3 +139,20 @@ def test_missing_api_key_raises(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(MissingAPIKeyError):
         summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23))
+
+
+def test_network_error_is_wrapped_as_summarizer_error():
+    client = _FakeClient(exc=RuntimeError("boom"))
+    with pytest.raises(SummarizerError):
+        summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23), client=client)
+
+
+def test_empty_response_text_raises_summarizer_error():
+    client = _FakeClient(text=None)
+    with pytest.raises(SummarizerError):
+        summarize(_one_event(), "daily", date(2026, 9, 22), date(2026, 9, 23), client=client)
+
+
+def test_parse_response_rejects_non_object_json():
+    with pytest.raises(SummarizerError):
+        parse_response("[1,2,3]", "daily", date(2026, 9, 22), date(2026, 9, 23))

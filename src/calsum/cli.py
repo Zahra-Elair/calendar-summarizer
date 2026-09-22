@@ -41,8 +41,8 @@ def _parse_args(argv):
 def main(argv: list[str] | None = None, summarize_fn=summarize) -> int:
     try:
         args = _parse_args(argv)
-    except SystemExit:
-        return 4
+    except SystemExit as e:
+        return e.code if e.code in (0, None) else 4
 
     if args.date is None:
         reference = date.today()

@@ -5,6 +5,10 @@ from calsum.events import Event
 
 
 def window_for(period: str, reference: date, week_start: int = 0) -> tuple[date, date]:
+    """Compute the [start, end_exclusive) date window for a period around reference.
+
+    week_start=0 means the week starts on Monday (Python's date.weekday() convention).
+    """
     if period == "daily":
         return reference, reference + timedelta(days=1)
     if period == "weekly":
@@ -20,6 +24,12 @@ def window_for(period: str, reference: date, week_start: int = 0) -> tuple[date,
 
 
 def filter_events(events: list[Event], start_date: date, end_exclusive: date) -> list[Event]:
+    """Return events overlapping [start_date, end_exclusive), sorted by start.
+
+    Overlap is computed at DATE granularity with [start_date, end_exclusive)
+    semantics, so an event ending exactly at midnight is attributed to that
+    day rather than the next one.
+    """
     included = [
         e
         for e in events

@@ -53,3 +53,8 @@ def test_main_quota_returns_3():
         raise QuotaExceededError("slow down")
     code = cli.main(["--period", "daily"], summarize_fn=boom)
     assert code == 3
+
+
+def test_main_help_returns_0(capsys):
+    code = cli.main(["--help"], summarize_fn=_fake_summarize_ok)
+    assert code == 0

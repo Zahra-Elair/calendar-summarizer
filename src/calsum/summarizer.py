@@ -58,6 +58,10 @@ def _strip_code_fence(raw: str) -> str:
 
 def parse_response(raw: str, period: str, start: date, end: date) -> Summary:
     data = json.loads(_strip_code_fence(raw))
+    if not isinstance(data, dict):
+        raise SummarizerError(
+            "Unexpected response shape from model (expected a JSON object)."
+        )
     return Summary(
         period=period,
         start=start,
@@ -136,5 +140,10 @@ def summarize(
                 "Gemini free-tier quota/rate limit reached. Wait a bit and retry."
             ) from exc
         raise SummarizerError(f"Gemini API error: {exc}") from exc
+    except Exception as exc:
+        raise SummarizerError(f"Failed to reach Gemini API: {exc}") from exc
+
+    if not response.text:
+        raise SummarizerError("Gemini returned an empty or blocked response.")
 
     return parse_response(response.text, period, start, end)
