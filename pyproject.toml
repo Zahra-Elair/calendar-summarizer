@@ -7,7 +7,7 @@ name = "calsum"
 version = "0.1.0"
 description = "AI calendar summarizer (daily/weekly/monthly)"
 requires-python = ">=3.11"
-dependencies = ["google-genai>=0.3"]
+dependencies = ["google-genai>=0.3", "python-dotenv>=1.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

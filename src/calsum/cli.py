@@ -2,6 +2,8 @@ import argparse
 import sys
 from datetime import date, datetime
 
+from dotenv import load_dotenv
+
 from calsum.sample_data import sample_events
 from calsum.summarizer import (
     MissingAPIKeyError,
@@ -39,6 +41,10 @@ def _parse_args(argv):
 
 
 def main(argv: list[str] | None = None, summarize_fn=summarize) -> int:
+    # Load GEMINI_API_KEY / CALSUM_MODEL from a local .env if present. Existing
+    # environment variables always win, so `export` still overrides the file.
+    load_dotenv(override=False)
+
     try:
         args = _parse_args(argv)
     except SystemExit as e:

@@ -8,8 +8,17 @@ calendar data — no sign-in required.
 
 ```bash
 python -m pip install -e ".[dev]"
-export GEMINI_API_KEY=your_free_key   # from https://aistudio.google.com/apikey
+cp .env.example .env    # then edit .env and paste your key
 ```
+
+Get a free key at https://aistudio.google.com/apikey and put it in `.env`:
+
+```
+GEMINI_API_KEY=your_free_key
+```
+
+`.env` is gitignored, so your key stays out of version control. An exported
+`GEMINI_API_KEY` environment variable also works and takes precedence over `.env`.
 
 ## Usage
 
