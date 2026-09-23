@@ -1,39 +1,11 @@
-# calsum — AI Calendar Summarizer (Phase 1)
+# Calendar Summarizer
 
-Generate a daily / weekly / monthly natural-language summary of a calendar,
-powered by the free tier of Google Gemini. Phase 1 runs against built-in sample
-calendar data — no sign-in required.
+AI-generated summaries of your calendar (daily / weekly / monthly), powered by
+the free tier of Google Gemini.
 
-## Setup
+- **`python-cli/`** — Phase 1: the summarizer engine + CLI (runs on sample data).
+  See [python-cli/README.md](python-cli/README.md).
+- **`web/`** — Phase 2: a Next.js web app. Sign in with Google, summarize your
+  real Google Calendar. See [web/README.md](web/README.md).
 
-```bash
-python -m pip install -e ".[dev]"
-cp .env.example .env    # then edit .env and paste your key
-```
-
-Get a free key at https://aistudio.google.com/apikey and put it in `.env`:
-
-```
-GEMINI_API_KEY=your_free_key
-```
-
-`.env` is gitignored, so your key stays out of version control. An exported
-`GEMINI_API_KEY` environment variable also works and takes precedence over `.env`.
-
-## Usage
-
-```bash
-calsum --period daily
-calsum --period weekly --date 2026-09-22
-calsum --period monthly
-```
-
-Optional: `export CALSUM_MODEL=gemini-3.6-flash` to change the model (this is the default).
-
-## Tests
-
-```bash
-python -m pytest
-```
-
-Unit tests mock the model, so they need no API key and cost nothing.
+Built in phases; see `docs/superpowers/specs/` for the designs.

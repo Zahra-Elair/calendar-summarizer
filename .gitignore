@@ -5,3 +5,9 @@ venv/
 .env
 .pytest_cache/
 *.egg-info/
+
+# Next.js / web
+web/node_modules/
+web/.next/
+web/.env.local
+web/coverage/
