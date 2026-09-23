@@ -31,26 +31,55 @@ function makeClient(): GenAILike {
   return new GoogleGenAI({ apiKey }) as unknown as GenAILike;
 }
 
+function statusOf(err: unknown): number | undefined {
+  return (err as { status?: number; code?: number })?.status
+    ?? (err as { code?: number })?.code;
+}
+
+/** A transient "model overloaded / high demand" (503) failure, worth one retry. */
+function isOverload(err: unknown): boolean {
+  if (statusOf(err) === 503) return true;
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return msg.includes("overload") || msg.includes("high demand") || msg.includes("unavailable");
+}
+
+async function generateWithOverloadRetry(
+  client: GenAILike, model: string, prompt: string, retryDelayMs: number,
+): Promise<string | null | undefined> {
+  const call = () =>
+    client.models.generateContent({
+      model, contents: prompt, config: { responseMimeType: "application/json" },
+    });
+  try {
+    return (await call()).text;
+  } catch (err) {
+    if (!isOverload(err)) throw err;
+    if (retryDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    return (await call()).text; // one retry; a second overload propagates to the caller
+  }
+}
+
 export async function summarize(
   events: CalEvent[], period: Period, startISO: string, endISO: string,
-  opts: { client?: GenAILike; model?: string } = {},
+  opts: { client?: GenAILike; model?: string; retryDelayMs?: number } = {},
 ): Promise<Summary> {
   if (events.length === 0) return emptySummary(period, startISO, endISO);
 
   const client = opts.client ?? makeClient();
   const model = opts.model ?? process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
+  const retryDelayMs = opts.retryDelayMs ?? 800;
   const prompt = buildPrompt(events, period, startISO, endISO);
 
   let text: string | null | undefined;
   try {
-    const res = await client.models.generateContent({
-      model, contents: prompt, config: { responseMimeType: "application/json" },
-    });
-    text = res.text;
+    text = await generateWithOverloadRetry(client, model, prompt, retryDelayMs);
   } catch (err: unknown) {
-    const status = (err as { status?: number; code?: number })?.status
-      ?? (err as { code?: number })?.code;
-    if (status === 429) throw new QuotaExceededError("Gemini free-tier quota/rate limit reached. Try again shortly.");
+    if (statusOf(err) === 429) {
+      throw new QuotaExceededError("Gemini free-tier quota/rate limit reached. Try again shortly.");
+    }
+    if (isOverload(err)) {
+      throw new SummarizerError("Gemini is busy right now — please try again in a moment.");
+    }
     const msg = err instanceof Error ? err.message : String(err);
     throw new SummarizerError(`Failed to reach Gemini: ${msg}`);
   }

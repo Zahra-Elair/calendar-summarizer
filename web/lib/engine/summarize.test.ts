@@ -52,4 +52,27 @@ describe("summarize", () => {
       if (prev !== undefined) process.env.GEMINI_API_KEY = prev;
     }
   });
+
+  it("retries once on a transient overload (503) and then succeeds", async () => {
+    const raw = JSON.stringify({ overview: "ok", keyEvents: [], timeBreakdown: "", highlights: [] });
+    const generateContent = vi
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error("The model is overloaded"), { status: 503 }))
+      .mockResolvedValueOnce({ text: raw });
+    const client = { models: { generateContent } };
+    const s = await summarize(oneEvent, "daily", "2026-09-22", "2026-09-23", { client, retryDelayMs: 0 });
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(s.overview).toBe("ok");
+  });
+
+  it("maps a persistent overload to a friendly 'busy' SummarizerError", async () => {
+    const generateContent = vi.fn(async () => {
+      throw Object.assign(new Error("The model is overloaded. Please try again later."), { status: 503 });
+    });
+    const client = { models: { generateContent } };
+    await expect(
+      summarize(oneEvent, "daily", "2026-09-22", "2026-09-23", { client, retryDelayMs: 0 }),
+    ).rejects.toThrow(/busy/i);
+    expect(generateContent).toHaveBeenCalledTimes(2); // original + one retry
+  });
 });
