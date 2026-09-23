@@ -25,10 +25,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, account }) {
       if (account?.access_token) token.accessToken = account.access_token;
+      // Record at sign-in whether the user actually granted the calendar scope
+      // (Google lets them decline it on the consent screen — granular consent).
+      if (account) {
+        token.calendarGranted = (account.scope ?? "").includes(
+          "https://www.googleapis.com/auth/calendar.readonly",
+        );
+      }
       return token;
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken as string | undefined;
+      session.calendarGranted = token.calendarGranted as boolean | undefined;
       return session;
     },
   },
