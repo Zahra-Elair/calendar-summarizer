@@ -5,6 +5,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   providers: [
     Google({
+      // Auth.js v5 otherwise auto-reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET;
+      // wire our documented env var names explicitly so .env.local works.
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
           scope:
