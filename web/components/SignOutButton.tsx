@@ -8,7 +8,10 @@ export function SignOutButton() {
         await signOut({ redirectTo: "/" });
       }}
     >
-      <button type="submit" className="text-sm text-gray-600 hover:text-black">
+      <button
+        type="submit"
+        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+      >
         Sign out
       </button>
     </form>
