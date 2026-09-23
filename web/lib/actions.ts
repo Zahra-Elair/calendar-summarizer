@@ -26,6 +26,14 @@ export async function generateSummary(
     if ((err as { code?: string })?.code === "AUTH_EXPIRED") {
       return { ok: false, error: "Your Google session expired. Please sign in again.", needsSignIn: true };
     }
+    if ((err as { code?: string })?.code === "SCOPE_DENIED") {
+      return {
+        ok: false,
+        error:
+          "Calendar access wasn't granted. Please sign in again and allow the calendar (read) permission.",
+        needsSignIn: true,
+      };
+    }
     if (err instanceof QuotaExceededError) return { ok: false, error: "Gemini free-tier limit reached. Try again shortly." };
     if (err instanceof MissingApiKeyError) return { ok: false, error: "Server is missing its Gemini API key." };
     if (err instanceof SummarizerError) return { ok: false, error: err.message };

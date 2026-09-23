@@ -45,6 +45,12 @@ export async function fetchCalendarEvents(
     (e as { code?: string }).code = "AUTH_EXPIRED";
     throw e;
   }
+  if (res.status === 403) {
+    // The user signed in but did not grant the calendar.readonly scope.
+    const e = new Error("Calendar access was not granted.");
+    (e as { code?: string }).code = "SCOPE_DENIED";
+    throw e;
+  }
   if (!res.ok) throw new Error(`Calendar API error: ${res.status}`);
   const data = (await res.json()) as { items?: GoogleEvent[] };
   const events = (data.items ?? []).map(mapGoogleEvent);
