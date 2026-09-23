@@ -13,7 +13,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         params: {
           scope:
             "openid email profile https://www.googleapis.com/auth/calendar.readonly",
-          access_type: "online",
+          // offline access makes Google issue a refresh token (with prompt
+          // "consent" below), so the server can silently renew the short-lived
+          // access token instead of forcing the user to sign in every ~hour.
+          access_type: "offline",
           // Always show the account chooser (+ consent) so the user picks which
           // Google account to connect, instead of Google auto-selecting the one
           // already signed in.
@@ -24,10 +27,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account }) {
-      if (account?.access_token) token.accessToken = account.access_token;
-      // Record at sign-in whether the user actually granted the calendar scope
-      // (Google lets them decline it on the consent screen — granular consent).
+      // account is only present at sign-in. Persist the tokens + expiry in the
+      // (encrypted) JWT; the access token is refreshed on read in the action.
       if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at; // Unix seconds
+        // Record whether the user actually granted the calendar scope
+        // (Google lets them decline it on the consent screen — granular consent).
         token.calendarGranted = (account.scope ?? "").includes(
           "https://www.googleapis.com/auth/calendar.readonly",
         );

@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { getToken } from "next-auth/jwt";
 import { auth } from "@/auth";
+import { shouldRefresh, refreshGoogleAccessToken } from "./google-auth";
 import { fetchCalendarEvents } from "./google-calendar";
 import { summarize, QuotaExceededError, MissingApiKeyError, SummarizerError } from "./engine/summarize";
 import type { Period, Summary } from "./engine/types";
@@ -12,7 +13,8 @@ export type SummaryResult =
   | { ok: false; error: string; needsSignIn?: boolean };
 
 // Read the Google access token from the encrypted JWT cookie, server-side only.
-// It is never placed on the session, so it never reaches the browser.
+// It is never placed on the session, so it never reaches the browser. If the
+// access token has expired, silently refresh it with the stored refresh token.
 async function getGoogleAccessToken(): Promise<string | undefined> {
   const req = new Request("http://localhost", { headers: await headers() });
   const token = await getToken({
@@ -20,7 +22,20 @@ async function getGoogleAccessToken(): Promise<string | undefined> {
     secret: process.env.AUTH_SECRET,
     secureCookie: process.env.NODE_ENV === "production",
   });
-  return token?.accessToken as string | undefined;
+  if (!token) return undefined;
+
+  const accessToken = token.accessToken as string | undefined;
+  const expiresAt = token.expiresAt as number | undefined;
+  const refreshToken = token.refreshToken as string | undefined;
+
+  if (accessToken && !shouldRefresh(expiresAt)) return accessToken;
+
+  if (refreshToken) {
+    const refreshed = await refreshGoogleAccessToken(refreshToken);
+    if (refreshed) return refreshed.accessToken;
+  }
+  // No usable token and refresh failed/unavailable → caller prompts re-sign-in.
+  return undefined;
 }
 
 export async function generateSummary(
