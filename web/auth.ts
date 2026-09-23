@@ -10,7 +10,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           scope:
             "openid email profile https://www.googleapis.com/auth/calendar.readonly",
           access_type: "online",
-          prompt: "consent",
+          // Always show the account chooser (+ consent) so the user picks which
+          // Google account to connect, instead of Google auto-selecting the one
+          // already signed in.
+          prompt: "select_account consent",
         },
       },
     }),
