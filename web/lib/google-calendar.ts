@@ -36,23 +36,10 @@ export async function fetchCalendarEvents(
     orderBy: "startTime",
     maxResults: "250",
   });
-  const debug = process.env.NODE_ENV !== "production";
-  if (debug) {
-    console.log("[calendar] request", {
-      period,
-      referenceISODate,
-      zone,
-      timeMin: start.toISO(),
-      timeMax: end.toISO(),
-    });
-  }
-
   const res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
   );
-
-  if (debug) console.log("[calendar] response status", res.status);
 
   if (res.status === 401) {
     const e = new Error("Calendar authorization expired.");
@@ -65,25 +52,8 @@ export async function fetchCalendarEvents(
     (e as { code?: string }).code = "SCOPE_DENIED";
     throw e;
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error("[calendar] API error", res.status, body.slice(0, 500));
-    throw new Error(`Calendar API error: ${res.status}`);
-  }
-  const data = (await res.json()) as {
-    items?: GoogleEvent[];
-    summary?: string;
-    timeZone?: string;
-  };
+  if (!res.ok) throw new Error(`Calendar API error: ${res.status}`);
+  const data = (await res.json()) as { items?: GoogleEvent[] };
   const events = (data.items ?? []).map(mapGoogleEvent);
-  if (debug) {
-    console.log("[calendar] result", {
-      calendar: data.summary,
-      calendarTimeZone: data.timeZone,
-      itemsReturned: data.items?.length ?? 0,
-      mapped: events.length,
-      firstFew: events.slice(0, 3).map((e) => ({ title: e.title, start: e.start.toISOString() })),
-    });
-  }
   return { events, startISO: start.toISODate()!, endISO: end.toISODate()! };
 }
