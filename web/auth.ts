@@ -35,7 +35,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string | undefined;
+      // Deliberately do NOT copy the Google access token onto the session:
+      // the session is served to the browser at /api/auth/session. The token
+      // stays in the encrypted JWT and is read server-side via getToken().
       session.calendarGranted = token.calendarGranted as boolean | undefined;
       return session;
     },

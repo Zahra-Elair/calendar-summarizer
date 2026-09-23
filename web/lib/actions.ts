@@ -1,5 +1,7 @@
 "use server";
 
+import { headers } from "next/headers";
+import { getToken } from "next-auth/jwt";
 import { auth } from "@/auth";
 import { fetchCalendarEvents } from "./google-calendar";
 import { summarize, QuotaExceededError, MissingApiKeyError, SummarizerError } from "./engine/summarize";
@@ -9,16 +11,32 @@ export type SummaryResult =
   | { ok: true; summary: Summary }
   | { ok: false; error: string; needsSignIn?: boolean };
 
+// Read the Google access token from the encrypted JWT cookie, server-side only.
+// It is never placed on the session, so it never reaches the browser.
+async function getGoogleAccessToken(): Promise<string | undefined> {
+  const req = new Request("http://localhost", { headers: await headers() });
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+  });
+  return token?.accessToken as string | undefined;
+}
+
 export async function generateSummary(
   input: { period: Period; date: string; zone: string },
 ): Promise<SummaryResult> {
   const session = await auth();
-  if (!session?.accessToken) {
+  if (!session) {
+    return { ok: false, error: "Your session expired. Please sign in again.", needsSignIn: true };
+  }
+  const accessToken = await getGoogleAccessToken();
+  if (!accessToken) {
     return { ok: false, error: "Your session expired. Please sign in again.", needsSignIn: true };
   }
   try {
     const { events, startISO, endISO } = await fetchCalendarEvents(
-      session.accessToken, input.period, input.date, input.zone,
+      accessToken, input.period, input.date, input.zone,
     );
     const summary = await summarize(events, input.period, startISO, endISO);
     return { ok: true, summary };
