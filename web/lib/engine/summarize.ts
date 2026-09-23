@@ -51,7 +51,8 @@ export async function summarize(
     const status = (err as { status?: number; code?: number })?.status
       ?? (err as { code?: number })?.code;
     if (status === 429) throw new QuotaExceededError("Gemini free-tier quota/rate limit reached. Try again shortly.");
-    throw new SummarizerError(`Failed to reach Gemini: ${(err as Error).message}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new SummarizerError(`Failed to reach Gemini: ${msg}`);
   }
 
   if (!text) throw new SummarizerError("Gemini returned an empty or blocked response.");

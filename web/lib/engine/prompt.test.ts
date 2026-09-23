@@ -18,6 +18,14 @@ describe("totalScheduledHours", () => {
     const events = [ev("holiday", "2026-09-22T00:00:00Z", "2026-09-23T00:00:00Z", true)];
     expect(totalScheduledHours(events)).toBe(0);
   });
+  it("rounds 0.25 to 0.2 (banker's rounding)", () => {
+    const events = [ev("quick", "2026-09-22T09:00:00Z", "2026-09-22T09:15:00Z")];
+    expect(totalScheduledHours(events)).toBe(0.2);
+  });
+  it("rounds 1.0833 to 1.1 (banker's rounding, not floor)", () => {
+    const events = [ev("meeting", "2026-09-22T09:00:00Z", "2026-09-22T10:05:00Z")]; // 65 minutes
+    expect(totalScheduledHours(events)).toBe(1.1);
+  });
 });
 
 describe("buildPrompt", () => {

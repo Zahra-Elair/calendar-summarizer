@@ -1,12 +1,24 @@
 import type { CalEvent, Period, Summary } from "./types";
 import { SummarizerError } from "./errors";
 
+function roundHalfToEven(value: number, decimals = 1): number {
+  const factor = 10 ** decimals;
+  const x = value * factor;
+  const fl = Math.floor(x);
+  const diff = x - fl;
+  let r: number;
+  if (diff < 0.5) r = fl;
+  else if (diff > 0.5) r = fl + 1;
+  else r = fl % 2 === 0 ? fl : fl + 1; // exactly .5 → nearest even
+  return r / factor;
+}
+
 export function totalScheduledHours(events: CalEvent[]): number {
-  const ms = events.reduce(
+  const totalMs = events.reduce(
     (acc, e) => acc + (e.allDay ? 0 : e.end.getTime() - e.start.getTime()),
     0,
   );
-  return Math.floor((ms / 3_600_000) * 10) / 10;
+  return roundHalfToEven(totalMs / 3_600_000, 1);
 }
 
 function formatEvent(e: CalEvent): string {
